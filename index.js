@@ -22,6 +22,79 @@ const logger = createLogger({
 	],
 });
 
+async function scrapeKidung(nomor) {
+  	let url = "http://alkitab.mobi/kidung/kj/" + nomor;
+	await fetch(url)
+				.then((response) => {
+					logger.info(
+						"-- Kidung Jemaat :" +
+							nomor +
+							", Status :" +
+							response.status
+					);
+					return response.text();
+				})
+				.then((body) => {
+					let $ = cheerio.load(body);
+					var log = "";
+					// Ambil judul lagu
+					const title = $('p.paragraphtitle').text().trim().replace(/'/g, "''");
+
+					// Ambil seluruh isi bait
+					const contents = [];
+
+					$('p').each((i, el) => {
+						const text = $(el).html().trim();
+
+						// Deteksi Reff
+						if (text.includes('<i>Reff:</i>')) {
+							const reff = $(el).text().replace(/Reff:/i, '').trim().replace(/'/g, "''");
+							contents.push({
+								type: 'reff',
+								text: reff
+							});
+						}
+
+						// Deteksi ayat
+						else if (/^\s*<i><strong>\d+<\/strong>\.<\/i>/.test(text)) {
+							const numberMatch = text.match(/<strong>(\d+)<\/strong>/);
+							const number = numberMatch ? parseInt(numberMatch[1]) : null;
+
+							const cleanText = $(el).text()
+								.replace(/\d+\./, '') // hapus nomor di awal
+								.replace(/Kembali ke Reff\./i, '') // hapus "Kembali ke Reff."
+								.trim();
+
+							contents.push({
+								type: 'verse',
+								number,
+								text: cleanText.replace(/'/g, "''")
+							});
+						}
+					});
+					log += `INSERT INTO tb_kidung(judul, konten) values ('${title}','${JSON.stringify(contents)}');\n`;
+					logger.info(log);
+					// res.json(items);
+				})
+				.catch((error) => {
+					logger.error("Error : Kidung Nomor: " + nomor + " : " + error);
+				});
+}
+  //await new Promise(resolve => setTimeout(resolve, 500));
+app.get("/kidung", function (req, res) {
+
+	(async () => {
+		for (let i = 1; i <= 478; i++) {
+			try {
+			await scrapeKidung(i); // tunggu selesai dulu sebelum lanjut
+			} catch (err) {
+			console.error(`Gagal scraping KJ ${i}:`, err.message);
+			}
+		}
+  		console.log("✅ Semua kidung selesai diproses.");
+	})();
+});
+
 app.get("/sample", function (req, res) {
 	let data = [
 		{

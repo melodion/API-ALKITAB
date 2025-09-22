@@ -38,7 +38,7 @@ async function scrapeKidung(nomor) {
 					let $ = cheerio.load(body);
 					var log = "";
 					// Ambil judul lagu
-					const title = $('p.paragraphtitle').text().trim().replace(/'/g, "''");
+					const title = $('p.paragraphtitle').text().trim().replace(/'/g, "''").replace(/"/g, '\\"');
 
 					// Ambil seluruh isi bait
 					const contents = [];
@@ -68,7 +68,7 @@ async function scrapeKidung(nomor) {
 							contents.push({
 								type: 'verse',
 								number,
-								text: cleanText.replace(/'/g, "''")
+								text: cleanText.replace(/'/g, "''").replace(/"/g, '\\"')
 							});
 						}
 					});

@@ -72,7 +72,7 @@ async function scrapeKidung(nomor) {
 							});
 						}
 					});
-					log += `INSERT INTO tb_kidung(judul, konten) values ('${title}','${JSON.stringify(contents)}');\n`;
+					log += `INSERT INTO tb_kidung(kategori,no,judul, konten) values ('KJ','${nomor}','${title}','${JSON.stringify(contents)}');\n`;
 					logger.info(log);
 					// res.json(items);
 				})
@@ -571,6 +571,83 @@ app.get("/sample", function (req, res) {
 		});
 		//l; //ogger.info("============== End Kitab : " + kitab + " ==================");
 	});
+});
+
+
+async function scrapeKidungKpj(nomor) {
+
+	const url = `https://alkitab.app/NKB/${nomor}`;
+	try {
+		const response = await fetch(url);
+		const body = await response.text();
+		var log = "";
+		const $ = cheerio.load(body);
+
+		// Ambil judul lagu
+		const judul = $('.lagu .judul').text().trim().replace(/'/g, "''").replace(/"/g, '\\"');
+
+		const konten = [];
+
+		// Iterasi setiap bait
+		$('.lirik .bait').each((i, el) => {
+		const isReff = $(el).hasClass('reff');
+		const numberText = $(el).find('.bait-no').text().trim();
+		const number = parseInt(numberText) || null;
+
+		const lines = [];
+		$(el).find('.baris').each((j, lineEl) => {
+			const line = $(lineEl).text().trim();
+			if (line) lines.push(line);
+		});
+
+		konten.push({
+			type: isReff ? 'reff' : 'verse',
+			number: isReff ? null : number,
+			text: lines.join('\n').replace(/'/g, "''").replace(/"/g, '\\"')
+		});
+		});
+
+		const hasil = {
+		judul,
+		konten
+		};
+		log += `INSERT INTO tb_kidung(kategori,no, judul, konten) values ('NKB','${nomor}','${judul}','${JSON.stringify(konten)}');\n`;
+		console.log('Nomor' + nomor + ' - ' + judul);
+		logger.info(log);
+		return hasil;
+	} catch (error) {
+		console.error(`Gagal fetch NKB ${nomor}: ${error.message}`);
+	}
+}
+  //await new Promise(resolve => setTimeout(resolve, 500));
+app.get("/kidung/nkb", function (req, res) {
+
+	(async () => {
+		//for (let i = 1; i <= 476; i++) {
+			try {
+			await scrapeKidungKpj('30A'); // tunggu selesai dulu sebelum lanjut');
+			await scrapeKidungKpj('30B');
+			await scrapeKidungKpj('32A');
+			await scrapeKidungKpj('32B');
+			await scrapeKidungKpj('47A');
+			await scrapeKidungKpj('47B');
+			await scrapeKidungKpj('76A');
+			await scrapeKidungKpj('76B');
+			await scrapeKidungKpj('181A');
+			await scrapeKidungKpj('181B');
+			await scrapeKidungKpj('192A');
+			await scrapeKidungKpj('192B');
+			await scrapeKidungKpj('192C');
+			await scrapeKidungKpj('221A');
+			await scrapeKidungKpj('221B');
+			await scrapeKidungKpj('223A');
+			await scrapeKidungKpj('223B');
+			} catch (err) {
+			console.error(`Gagal scraping NKB ${i}:`, err.message);
+			}
+		//}
+  		console.log("✅ Semua kidung selesai diproses.");
+	})();
 });
 
 app.listen(port);
